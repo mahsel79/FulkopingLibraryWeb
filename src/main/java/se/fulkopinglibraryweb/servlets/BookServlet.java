@@ -1,4 +1,196 @@
-package se.fulkopinglibraryweb.servlets;
+ package se.fulkopinglibraryweb.servlets;
 
-public class BookServlet {
+import se.fulkopinglibraryweb.model.Book;
+import se.fulkopinglibraryweb.service.interfaces.BookService;
+import se.fulkopinglibraryweb.service.search.SearchCriteria;
+import se.fulkopinglibraryweb.utils.LoggingUtils;
+import org.slf4j.Logger;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+
+@WebServlet("/books/*")
+public class BookServlet extends HttpServlet {
+    private static final Logger logger = LoggingUtils.getLogger(BookServlet.class);
+    private BookService bookService;
+
+    @Override
+    public void init() throws ServletException {
+        super.init();
+        bookService = (BookService) getServletContext().getAttribute("bookService");
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String pathInfo = request.getPathInfo();
+        
+        if (pathInfo == null || pathInfo.equals("/")) {
+            handleListBooks(request, response);
+        } else if (pathInfo.matches("/\\d+")) {
+            handleGetBook(request, response);
+        } else {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+        }
+    }
+
+    private void handleListBooks(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String searchType = request.getParameter("searchType");
+        String searchQuery = request.getParameter("searchQuery");
+
+        List<Book> bookList;
+        if (searchQuery != null && !searchQuery.trim().isEmpty()) {
+            LoggingUtils.logInfo(logger, "Searching books by: " + searchType + " = " + searchQuery);
+            SearchCriteria criteria = new SearchCriteria();
+            criteria.setFilterField(searchType);
+            criteria.setFilterValue(searchQuery);
+            bookList = bookService.searchBooks(criteria);
+        } else {
+            bookList = bookService.findAll();
+        }
+
+        request.setAttribute("bookList", bookList);
+        request.getRequestDispatcher("/books.jsp").forward(request, response);
+    }
+
+    private void handleGetBook(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String pathInfo = request.getPathInfo();
+        String bookId = pathInfo.substring(1);
+        
+        Book book = bookService.findById(bookId)
+            .orElseThrow(() -> new IllegalArgumentException("Book not found"));
+        request.setAttribute("book", book);
+        request.getRequestDispatcher("/book-details.jsp").forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        try {
+            validateBookParameters(request);
+            
+            Book newBook = createBookFromRequest(request);
+            bookService.save(newBook);
+
+            LoggingUtils.logInfo(logger, "New book added: " + newBook.getTitle());
+            response.sendRedirect(request.getContextPath() + "/books");
+            
+        } catch (IllegalArgumentException e) {
+            handleValidationError(request, response, e.getMessage());
+        } catch (Exception e) {
+            handleServerError(response, "Error adding book");
+        }
+    }
+
+    @Override
+    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String pathInfo = request.getPathInfo();
+        if (pathInfo == null || !pathInfo.matches("/\\d+")) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid book ID");
+            return;
+        }
+
+        try {
+            String bookId = pathInfo.substring(1);
+            validateBookParameters(request);
+            
+            Book updatedBook = createBookFromRequest(request);
+            updatedBook.setId(bookId);
+            
+            Book updatedBookResult = bookService.update(updatedBook);
+            if (updatedBookResult != null) {
+                LoggingUtils.logInfo(logger, "Book updated: " + updatedBook.getTitle());
+                response.setStatus(HttpServletResponse.SC_OK);
+            } else {
+                response.sendError(HttpServletResponse.SC_NOT_FOUND, "Book not found");
+            }
+        } catch (IllegalArgumentException e) {
+            handleValidationError(request, response, e.getMessage());
+        } catch (Exception e) {
+            handleServerError(response, "Error updating book");
+        }
+    }
+
+    @Override
+    protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        String pathInfo = request.getPathInfo();
+        if (pathInfo == null || !pathInfo.matches("/\\d+")) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid book ID");
+            return;
+        }
+
+        try {
+            String bookId = pathInfo.substring(1);
+            bookService.deleteById(bookId);
+            LoggingUtils.logInfo(logger, "Book deleted: " + bookId);
+            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+        } catch (Exception e) {
+            handleServerError(response, "Error deleting book");
+        }
+    }
+
+    private void validateBookParameters(HttpServletRequest request) {
+        String title = request.getParameter("title");
+        String author = request.getParameter("author");
+        String isbn = request.getParameter("isbn");
+        String yearStr = request.getParameter("year");
+        String pageCountStr = request.getParameter("pageCount");
+
+        if (title == null || title.trim().isEmpty()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+        if (author == null || author.trim().isEmpty()) {
+            throw new IllegalArgumentException("Author is required");
+        }
+        if (isbn == null || !isbn.matches("^\\d{10}|\\d{13}$")) {
+            throw new IllegalArgumentException("Invalid ISBN format");
+        }
+        try {
+            int year = Integer.parseInt(yearStr);
+            if (year < 1000 || year > 9999) {
+                throw new IllegalArgumentException("Invalid publication year");
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid publication year format");
+        }
+        try {
+            int pageCount = Integer.parseInt(pageCountStr);
+            if (pageCount <= 0) {
+                throw new IllegalArgumentException("Page count must be positive");
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid page count format");
+        }
+    }
+
+    private Book createBookFromRequest(HttpServletRequest request) {
+        String title = request.getParameter("title");
+        boolean available = Boolean.parseBoolean(request.getParameter("available"));
+        String author = request.getParameter("author");
+        String isbn = request.getParameter("isbn");
+        int year = Integer.parseInt(request.getParameter("year"));
+
+        Book book = new Book();
+        book.setTitle(title);
+        book.setAuthor(author);
+        book.setIsbn(isbn);
+        book.setYear(year);
+        book.setAvailable(available);
+        return book;
+    }
+
+    private void handleValidationError(HttpServletRequest request, HttpServletResponse response, String message) 
+            throws ServletException, IOException {
+        request.setAttribute("error", message);
+        request.getRequestDispatcher("/books.jsp").forward(request, response);
+    }
+
+    private void handleServerError(HttpServletResponse response, String message) throws IOException {
+        LoggingUtils.logError(logger, message, new Exception(message));
+        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+    }
 }
