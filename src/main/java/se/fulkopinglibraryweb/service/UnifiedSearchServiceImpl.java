@@ -12,10 +12,11 @@ import se.fulkopinglibraryweb.model.Magazine;
 import se.fulkopinglibraryweb.model.Media;
 import se.fulkopinglibraryweb.service.interfaces.UnifiedSearchService;
 import se.fulkopinglibraryweb.service.search.SearchCriteria;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
 
+import com.google.cloud.firestore.Firestore;
 import java.util.ArrayList;
 import java.util.List;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 @Service
 public class UnifiedSearchServiceImpl implements UnifiedSearchService {
 
@@ -42,13 +43,13 @@ public class UnifiedSearchServiceImpl implements UnifiedSearchService {
         try {
             // Search local repositories
             results.addAll(bookRepository.searchBooks(criteria));
-            results.addAll(magazineRepository.search(criteria).join().getItems());
-            results.addAll(mediaRepository.search(criteria).join().getItems());
+            results.addAll(magazineRepository.search(criteria));
+            results.addAll(mediaRepository.search(criteria));
             
             // Search Firestore
-            results.addAll(firestoreRepository.search(criteria).join().getItems());
+            results.addAll(firestoreRepository.search(criteria));
         } catch (Exception e) {
-            LoggingUtils.error("Error during unified search", e);
+            LoggerUtil.logError("Error during unified search", e);
             throw new RuntimeException("Search operation failed", e);
         }
         
@@ -62,14 +63,14 @@ public class UnifiedSearchServiceImpl implements UnifiedSearchService {
             if (itemType.equals(Book.class)) {
                 return (List<T>) bookRepository.searchBooks(criteria);
             } else if (itemType.equals(Magazine.class)) {
-                return (List<T>) magazineRepository.search(criteria).join().getItems();
+                return (List<T>) magazineRepository.search(criteria);
             } else if (itemType.equals(Media.class)) {
-                return (List<T>) mediaRepository.search(criteria).join().getItems();
+                return (List<T>) mediaRepository.search(criteria);
             } else {
                 throw new IllegalArgumentException("Unsupported item type: " + itemType.getSimpleName());
             }
         } catch (Exception e) {
-            LoggingUtils.error("Error during type-specific search", e);
+            LoggerUtil.logError("Error during type-specific search", e);
             throw new RuntimeException("Search operation failed", e);
         }
     }
@@ -80,14 +81,16 @@ public class UnifiedSearchServiceImpl implements UnifiedSearchService {
             if (itemType.equals(Book.class)) {
                 return bookRepository.getSearchableFields();
             } else if (itemType.equals(Magazine.class)) {
-                return magazineRepository.getSearchableFields();
+                // Return default searchable fields for magazines
+                return List.of("publisher", "issn", "category", "publicationYear", "frequency");
             } else if (itemType.equals(Media.class)) {
-                return mediaRepository.getSearchableFields();
+                // Return default searchable fields for media
+                return List.of("type", "director", "releaseYear");
             } else {
                 throw new IllegalArgumentException("Unsupported item type: " + itemType.getSimpleName());
             }
         } catch (Exception e) {
-            LoggingUtils.error("Error getting searchable fields", e);
+            LoggerUtil.logError("Error getting searchable fields", e);
             throw new RuntimeException("Failed to get searchable fields", e);
         }
     }

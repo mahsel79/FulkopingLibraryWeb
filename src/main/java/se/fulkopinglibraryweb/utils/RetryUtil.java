@@ -2,11 +2,9 @@ package se.fulkopinglibraryweb.utils;
 
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 
 public class RetryUtil {
-    private static final Logger logger = LoggerFactory.getLogger(RetryUtil.class);
     private static final int MAX_RETRIES = 3;
     private static final long INITIAL_BACKOFF = 1000L; // 1 second
 
@@ -34,8 +32,8 @@ public class RetryUtil {
                 }
 
                 long backoffTime = calculateBackoffTime(initialBackoff, attempts);
-                logger.warn("Operation failed, attempt {} of {}. Retrying in {} ms...",
-                        attempts, maxRetries, backoffTime, e);
+                LoggerUtil.logWarn("RetryUtil", "Operation failed, attempt {} of {}. Retrying in {} ms...",
+                        attempts, maxRetries, backoffTime);
 
                 try {
                     Thread.sleep(backoffTime);

@@ -3,7 +3,6 @@ package se.fulkopinglibraryweb.service;
 import se.fulkopinglibraryweb.model.LibraryItem;
 import se.fulkopinglibraryweb.service.search.SearchCriteria;
 import java.util.List;
-import java.util.Map;
 
 public interface SearchService<T> {
     /**

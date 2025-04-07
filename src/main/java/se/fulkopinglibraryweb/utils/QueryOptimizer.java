@@ -11,8 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 
 /**
  * Utility class for optimizing Firestore queries.
@@ -20,7 +19,7 @@ import java.util.logging.Logger;
  */
 public class QueryOptimizer {
     
-    private static final Logger logger = Logger.getLogger(QueryOptimizer.class.getName());
+    // Using LoggerUtil's static methods directly
     private static final ExecutorService queryExecutor = Executors.newFixedThreadPool(5);
     
     // Default page size for paginated queries
@@ -42,7 +41,7 @@ public class QueryOptimizer {
                 QuerySnapshot snapshot = query.limit(pageSize).get().get();
                 return mapper.apply(snapshot);
             } catch (Exception e) {
-                logger.log(Level.SEVERE, "Error executing paged query", e);
+                LoggerUtil.logError("Error executing paged query: %s", e.getMessage());
                 throw new RuntimeException("Error executing paged query", e);
             }
         }, queryExecutor);
@@ -75,7 +74,7 @@ public class QueryOptimizer {
                     try {
                         return query.get().get();
                     } catch (Exception e) {
-                        logger.log(Level.SEVERE, "Error executing batch query", e);
+                LoggerUtil.logError("Error executing batch query: %s", e.getMessage());
                         throw new RuntimeException("Error executing batch query", e);
                     }
                 }, queryExecutor))

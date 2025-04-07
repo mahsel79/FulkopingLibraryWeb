@@ -1,5 +1,6 @@
 package se.fulkopinglibraryweb.service.impl;
 
+import se.fulkopinglibraryweb.exception.MagazineServiceException;
 import se.fulkopinglibraryweb.model.Magazine;
 import se.fulkopinglibraryweb.repository.MagazineRepository;
 import se.fulkopinglibraryweb.service.interfaces.MagazineService;
@@ -42,21 +43,73 @@ public class MagazineServiceImpl implements MagazineService {
 
     @Override
     public Optional<String> getMagazineById(String id) {
-        Optional<Magazine> magazineOpt = magazineRepository.findById(id);
-        return magazineOpt.map(gson::toJson);
+        try {
+            Optional<Magazine> magazineOpt = magazineRepository.findById(id);
+            return magazineOpt.map(gson::toJson);
+        } catch (Exception e) {
+            throw new MagazineServiceException(
+                "getMagazineById", 
+                id, 
+                MagazineServiceException.ErrorType.DATABASE_ERROR,
+                "Failed to retrieve magazine with id: " + id,
+                e
+            );
+        }
     }
 
     @Override
     public void addMagazine(String magazineDetails) {
-        Magazine magazine = gson.fromJson(magazineDetails, Magazine.class);
-        magazineRepository.save(magazine);
+        try {
+            Magazine magazine = gson.fromJson(magazineDetails, Magazine.class);
+            if (magazine == null) {
+                throw new MagazineServiceException(
+                    "addMagazine",
+                    magazineDetails,
+                    MagazineServiceException.ErrorType.INVALID_INPUT,
+                    "Invalid magazine details format"
+                );
+            }
+            magazineRepository.save(magazine);
+        } catch (Exception e) {
+            throw new MagazineServiceException(
+                "addMagazine",
+                magazineDetails,
+                MagazineServiceException.ErrorType.DATABASE_ERROR,
+                "Failed to add magazine",
+                e
+            );
+        }
     }
 
     @Override
     public void updateMagazine(String id, String magazineDetails) {
-        if (magazineRepository.existsById(id)) {
+        try {
+            if (!magazineRepository.existsById(id)) {
+                throw new MagazineServiceException(
+                    "updateMagazine",
+                    id,
+                    MagazineServiceException.ErrorType.NOT_FOUND,
+                    "Magazine not found with id: " + id
+                );
+            }
             Magazine magazine = gson.fromJson(magazineDetails, Magazine.class);
+            if (magazine == null) {
+                throw new MagazineServiceException(
+                    "updateMagazine",
+                    magazineDetails,
+                    MagazineServiceException.ErrorType.INVALID_INPUT,
+                    "Invalid magazine details format"
+                );
+            }
             magazineRepository.save(magazine);
+        } catch (Exception e) {
+            throw new MagazineServiceException(
+                "updateMagazine",
+                id,
+                MagazineServiceException.ErrorType.DATABASE_ERROR,
+                "Failed to update magazine with id: " + id,
+                e
+            );
         }
     }
 
@@ -85,6 +138,24 @@ public class MagazineServiceImpl implements MagazineService {
 
     @Override
     public void deleteMagazine(String id) {
-        magazineRepository.deleteById(id);
+        try {
+            if (!magazineRepository.existsById(id)) {
+                throw new MagazineServiceException(
+                    "deleteMagazine",
+                    id,
+                    MagazineServiceException.ErrorType.NOT_FOUND,
+                    "Magazine not found with id: " + id
+                );
+            }
+            magazineRepository.deleteById(id);
+        } catch (Exception e) {
+            throw new MagazineServiceException(
+                "deleteMagazine",
+                id,
+                MagazineServiceException.ErrorType.DATABASE_ERROR,
+                "Failed to delete magazine with id: " + id,
+                e
+            );
+        }
     }
 }

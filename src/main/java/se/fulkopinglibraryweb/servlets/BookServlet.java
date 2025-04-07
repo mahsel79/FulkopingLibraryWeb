@@ -1,10 +1,10 @@
- package se.fulkopinglibraryweb.servlets;
+package se.fulkopinglibraryweb.servlets;
 
 import se.fulkopinglibraryweb.model.Book;
 import se.fulkopinglibraryweb.service.interfaces.BookService;
 import se.fulkopinglibraryweb.service.search.SearchCriteria;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -12,12 +12,11 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @WebServlet("/books/*")
 public class BookServlet extends HttpServlet {
-    private static final Logger logger = LoggingUtils.getLogger(BookServlet.class);
+    private static final Logger logger = LoggerFactory.getLogger(BookServlet.class);
     private BookService bookService;
 
     @Override
@@ -45,7 +44,7 @@ public class BookServlet extends HttpServlet {
 
         List<Book> bookList;
         if (searchQuery != null && !searchQuery.trim().isEmpty()) {
-            LoggingUtils.logInfo(logger, "Searching books by: " + searchType + " = " + searchQuery);
+            logger.info("Searching books by {} = {}", searchType, searchQuery);
             SearchCriteria criteria = new SearchCriteria();
             criteria.setFilterField(searchType);
             criteria.setFilterValue(searchQuery);
@@ -55,17 +54,20 @@ public class BookServlet extends HttpServlet {
         }
 
         request.setAttribute("bookList", bookList);
-        request.getRequestDispatcher("/books.jsp").forward(request, response);
+        request.getRequestDispatcher("/WEB-INF/views/books.jsp").forward(request, response);
     }
 
     private void handleGetBook(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String pathInfo = request.getPathInfo();
         String bookId = pathInfo.substring(1);
         
-        Book book = bookService.findById(bookId)
-            .orElseThrow(() -> new IllegalArgumentException("Book not found"));
+        Book book = bookService.findById(bookId);
+        if (book == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND, "Book not found");
+            return;
+        }
         request.setAttribute("book", book);
-        request.getRequestDispatcher("/book-details.jsp").forward(request, response);
+        request.getRequestDispatcher("/WEB-INF/views/books.jsp").forward(request, response);
     }
 
     @Override
@@ -76,13 +78,13 @@ public class BookServlet extends HttpServlet {
             Book newBook = createBookFromRequest(request);
             bookService.save(newBook);
 
-            LoggingUtils.logInfo(logger, "New book added: " + newBook.getTitle());
+            logger.info("New book added: {}", newBook.getTitle());
             response.sendRedirect(request.getContextPath() + "/books");
             
         } catch (IllegalArgumentException e) {
             handleValidationError(request, response, e.getMessage());
         } catch (Exception e) {
-            handleServerError(response, "Error adding book");
+            handleServerError(response, "Error adding book", e);
         }
     }
 
@@ -101,9 +103,10 @@ public class BookServlet extends HttpServlet {
             Book updatedBook = createBookFromRequest(request);
             updatedBook.setId(bookId);
             
-            Book updatedBookResult = bookService.update(updatedBook);
-            if (updatedBookResult != null) {
-                LoggingUtils.logInfo(logger, "Book updated: " + updatedBook.getTitle());
+            Optional<Book> updatedBookOpt = bookService.update(updatedBook);
+            if (updatedBookOpt.isPresent()) {
+                Book updatedBookResult = updatedBookOpt.get();
+                logger.info("Book updated: {}", updatedBook.getTitle());
                 response.setStatus(HttpServletResponse.SC_OK);
             } else {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND, "Book not found");
@@ -111,7 +114,7 @@ public class BookServlet extends HttpServlet {
         } catch (IllegalArgumentException e) {
             handleValidationError(request, response, e.getMessage());
         } catch (Exception e) {
-            handleServerError(response, "Error updating book");
+            handleServerError(response, "Error updating book", e);
         }
     }
 
@@ -126,10 +129,10 @@ public class BookServlet extends HttpServlet {
         try {
             String bookId = pathInfo.substring(1);
             bookService.deleteById(bookId);
-            LoggingUtils.logInfo(logger, "Book deleted: " + bookId);
+            logger.info("Book deleted: {}", bookId);
             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
         } catch (Exception e) {
-            handleServerError(response, "Error deleting book");
+            handleServerError(response, "Error deleting book", e);
         }
     }
 
@@ -186,11 +189,11 @@ public class BookServlet extends HttpServlet {
     private void handleValidationError(HttpServletRequest request, HttpServletResponse response, String message) 
             throws ServletException, IOException {
         request.setAttribute("error", message);
-        request.getRequestDispatcher("/books.jsp").forward(request, response);
+        request.getRequestDispatcher("/WEB-INF/views/books.jsp").forward(request, response);
     }
 
-    private void handleServerError(HttpServletResponse response, String message) throws IOException {
-        LoggingUtils.logError(logger, message, new Exception(message));
+    private void handleServerError(HttpServletResponse response, String message, Exception e) throws IOException {
+            logger.error("{}: {}", message, e.getMessage(), e);
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
     }
 }

@@ -1,194 +1,147 @@
 package se.fulkopinglibraryweb.controllers;
 
-import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import se.fulkopinglibraryweb.model.Book;
 import se.fulkopinglibraryweb.service.BookService;
 import se.fulkopinglibraryweb.service.LibraryService;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
-import org.slf4j.Logger;
+import se.fulkopinglibraryweb.exception.ControllerException;
+import se.fulkopinglibraryweb.dtos.BorrowRequest;
 
-import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.List;
 
 /**
- * Controller class handling HTTP requests for book-related operations.
- * This servlet manages RESTful endpoints for book management, including listing all books,
- * retrieving individual books, and handling book-related operations.
- *
- * @see BookService
- * @see LibraryService 
- * @see Book
+ * REST controller for book-related operations.
+ * Handles requests for book management including listing, borrowing and returning books.
  */
-@WebServlet("/books/*")
-public class BookController extends HttpServlet {
-    private static final Logger logger = LoggingUtils.getLogger(BookController.class);
+@RestController
+@RequestMapping("/books")
+public class BookController {
+    private static final Logger logger = LoggerFactory.getLogger(BookController.class);
     private final BookService bookService;
     private final LibraryService libraryService;
-    private final Gson gson;
 
-    /**
-     * Initializes the BookController with required dependencies.
-     * Sets up the BookService, LibraryService and Gson parser for JSON handling.
-     */
     public BookController(BookService bookService, LibraryService libraryService) {
         this.bookService = bookService;
         this.libraryService = libraryService;
-        this.gson = new Gson();
     }
 
     /**
-     * Configures the HTTP response for JSON output.
-     * Sets appropriate content type and character encoding.
-     *
-     * @param response The HTTP response to be configured
+     * Get all books
+     * @return List of all books
      */
-    private void setupJsonResponse(HttpServletResponse response) {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
-    }
-
-    /**
-     * Handles GET requests for book resources.
-     * Supports two operations:
-     * 1. Listing all books when path is "/books/" or "/books"
-     * 2. Retrieving a specific book when path is "/books/{bookId}"
-     *
-     * @param request The HTTP request object
-     * @param response The HTTP response object
-     * @throws IOException If an I/O error occurs while processing the request
-     */
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        logger.info("Entering doGet - path: {}", request.getPathInfo());
+    @GetMapping
+    public ResponseEntity<List<Book>> getAllBooks() {
         long startTime = System.currentTimeMillis();
+        logger.debug("GET request received for all books");
         
         try {
-            setupJsonResponse(response);
-            String pathInfo = request.getPathInfo();
+            List<Book> books = bookService.getAllBooks();
+            logger.info("Retrieved {} books in {} ms", 
+                books.size(), System.currentTimeMillis() - startTime);
+            return ResponseEntity.ok(books);
+        } catch (Exception e) {
+            logger.error("Error getting all books (took {} ms): {}", 
+                System.currentTimeMillis() - startTime, e.getMessage(), e);
+            throw new ControllerException(
+                500,
+                "BOOK_RETRIEVAL_ERROR",
+                "Failed to retrieve books",
+                e.getMessage()
+            );
+        }
+    }
 
-            try (PrintWriter out = response.getWriter()) {
-                if (pathInfo == null || pathInfo.equals("/")) {
-                    logger.debug("Fetching all books");
-                    List<Book> books = bookService.getAllBooks();
-                    out.print(gson.toJson(books));
-                    logger.debug("Returned {} books", books.size());
-                } else {
-                    String bookId = pathInfo.substring(1);
-                    logger.debug("Fetching book with ID: {}", bookId);
-                    Book book = bookService.getBookById(bookId);
-                    if (book != null) {
-                        out.print(gson.toJson(book));
-                        logger.debug("Successfully returned book: {}", bookId);
-                    } else {
-                        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                        out.print(gson.toJson("Book not found"));
-                        logger.warn("Book not found: {}", bookId);
-                    }
-                }
-                out.flush();
+    /**
+     * Get a specific book by ID
+     * @param bookId The ID of the book to retrieve
+     * @return The requested book
+     */
+    @GetMapping("/{bookId}")
+    public ResponseEntity<Book> getBookById(@PathVariable String bookId) {
+        long startTime = System.currentTimeMillis();
+        logger.debug("GET request received for book ID: {}", bookId);
+        
+        try {
+            Book book = bookService.getBookById(bookId);
+            if (book == null) {
+                logger.warn("Book not found with ID: {} (took {} ms)", 
+                    bookId, System.currentTimeMillis() - startTime);
+                throw new ControllerException(
+                    404,
+                    "BOOK_NOT_FOUND",
+                    "Book not found",
+                    "Book with ID " + bookId + " does not exist"
+                );
             }
-        } finally {
-            logger.info("Exiting doGet - execution time: {}ms", 
-                System.currentTimeMillis() - startTime);
+            return ResponseEntity.ok(book);
+        } catch (Exception e) {
+            logger.error("Error getting book with ID {} (took {} ms): {}", 
+                bookId, System.currentTimeMillis() - startTime, e.getMessage(), e);
+            throw new ControllerException(
+                500,
+                "BOOK_RETRIEVAL_ERROR",
+                "Failed to retrieve book",
+                e.getMessage()
+            );
         }
     }
 
     /**
-     * Handles POST requests for borrowing books.
-     * Expects JSON payload with userId and bookId
-     *
-     * @param request The HTTP request object
-     * @param response The HTTP response object
-     * @throws IOException If an I/O error occurs while processing the request
+     * Borrow a book
+     * @param borrowRequest Contains userId and bookId
+     * @return Success message
      */
-    @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        logger.info("Entering doPost - borrowing book");
+    @PostMapping("/borrow")
+    public ResponseEntity<String> borrowBook(@RequestBody BorrowRequest borrowRequest) {
         long startTime = System.currentTimeMillis();
+        logger.debug("POST request received to borrow book: {}", borrowRequest);
         
         try {
-            setupJsonResponse(response);
-        
-        try (PrintWriter out = response.getWriter()) {
-            // Parse request body
-            String requestBody = request.getReader().lines().reduce("", (accumulator, actual) -> accumulator + actual);
-            logger.debug("Borrow request body: {}", requestBody);
-            
-            BorrowRequest borrowRequest = gson.fromJson(requestBody, BorrowRequest.class);
-            logger.info("Processing borrow request - User: {}, Book: {}", 
-                borrowRequest.userId, borrowRequest.bookId);
-            
-            // Perform borrow operation
-            libraryService.borrowBook(borrowRequest.userId, borrowRequest.bookId);
-            
-            out.print(gson.toJson("Book borrowed successfully"));
-            out.flush();
-            logger.info("Book borrowed successfully - User: {}, Book: {}", 
-                borrowRequest.userId, borrowRequest.bookId);
-        } catch (Exception e) {
-            logger.error("Error processing borrow request", e);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().print(gson.toJson(e.getMessage()));
-        }
-        } finally {
-            logger.info("Exiting doPost - execution time: {}ms", 
+            libraryService.borrowBook(borrowRequest.getUserId(), borrowRequest.getBookId());
+            logger.info("Book {} borrowed by user {} (took {} ms)", 
+                borrowRequest.getBookId(), borrowRequest.getUserId(),
                 System.currentTimeMillis() - startTime);
+            return ResponseEntity.ok("Book borrowed successfully");
+        } catch (Exception e) {
+            logger.error("Error borrowing book (took {} ms): {}", 
+                System.currentTimeMillis() - startTime, e.getMessage(), e);
+            throw new ControllerException(
+                400,
+                "BORROW_ERROR",
+                "Failed to borrow book",
+                e.getMessage()
+            );
         }
     }
 
     /**
-     * Handles PUT requests for returning books.
-     * Expects JSON payload with userId and bookId
-     *
-     * @param request The HTTP request object
-     * @param response The HTTP response object
-     * @throws IOException If an I/O error occurs while processing the request
+     * Return a book
+     * @param borrowRequest Contains userId and bookId
+     * @return Success message
      */
-    @Override
-    protected void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        logger.info("Entering doPut - returning book");
+    @PutMapping("/return")
+    public ResponseEntity<String> returnBook(@RequestBody BorrowRequest borrowRequest) {
         long startTime = System.currentTimeMillis();
+        logger.debug("PUT request received to return book: {}", borrowRequest);
         
         try {
-            setupJsonResponse(response);
-        
-        try (PrintWriter out = response.getWriter()) {
-            // Parse request body
-            String requestBody = request.getReader().lines().reduce("", (accumulator, actual) -> accumulator + actual);
-            logger.debug("Return request body: {}", requestBody);
-            
-            BorrowRequest borrowRequest = gson.fromJson(requestBody, BorrowRequest.class);
-            logger.info("Processing return request - User: {}, Book: {}", 
-                borrowRequest.userId, borrowRequest.bookId);
-            
-            // Perform return operation
-            libraryService.returnBook(borrowRequest.userId, borrowRequest.bookId);
-            
-            out.print(gson.toJson("Book returned successfully"));
-            out.flush();
-            logger.info("Book returned successfully - User: {}, Book: {}", 
-                borrowRequest.userId, borrowRequest.bookId);
-        } catch (Exception e) {
-            logger.error("Error processing return request", e);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().print(gson.toJson(e.getMessage()));
-        }
-        } finally {
-            logger.info("Exiting doPut - execution time: {}ms", 
+            libraryService.returnBook(borrowRequest.getUserId(), borrowRequest.getBookId());
+            logger.info("Book {} returned by user {} (took {} ms)", 
+                borrowRequest.getBookId(), borrowRequest.getUserId(),
                 System.currentTimeMillis() - startTime);
+            return ResponseEntity.ok("Book returned successfully");
+        } catch (Exception e) {
+            logger.error("Error returning book (took {} ms): {}", 
+                System.currentTimeMillis() - startTime, e.getMessage(), e);
+            throw new ControllerException(
+                400,
+                "RETURN_ERROR",
+                "Failed to return book",
+                e.getMessage()
+            );
         }
-    }
-
-    /**
-     * Inner class representing borrow/return request payload
-     */
-    private static class BorrowRequest {
-        String userId;
-        String bookId;
     }
 }

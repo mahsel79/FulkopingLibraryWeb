@@ -10,7 +10,7 @@ import se.fulkopinglibraryweb.model.Media;
 
 
 
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+
 import se.fulkopinglibraryweb.service.interfaces.LoanService;
 import se.fulkopinglibraryweb.repository.BookRepository;
 import se.fulkopinglibraryweb.repository.MagazineRepository;
@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Service class that manages library item loans
@@ -312,5 +313,5 @@ public class LoanServiceImpl implements LoanService {
         return loan;
     }
 
-    private static final Logger logger = LoggingUtils.getLogger(LoanServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(LoanServiceImpl.class);
 }

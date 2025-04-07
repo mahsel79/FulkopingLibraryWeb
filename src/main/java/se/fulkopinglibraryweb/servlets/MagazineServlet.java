@@ -2,12 +2,10 @@ package se.fulkopinglibraryweb.servlets;
 
 import com.google.gson.Gson;
 import se.fulkopinglibraryweb.repository.MagazineRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import se.fulkopinglibraryweb.model.Magazine;
 import se.fulkopinglibraryweb.service.MagazineService;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.inject.Inject;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -19,9 +17,9 @@ import java.util.List;
 
 @WebServlet("/api/magazines/*")
 public class MagazineServlet extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(MagazineServlet.class);
     private final MagazineService magazineService;
     private final Gson gson;
-    private static final Logger logger = LoggerFactory.getLogger(MagazineServlet.class);
 
     @Inject
     public MagazineServlet(MagazineService magazineService) {
@@ -47,7 +45,7 @@ public class MagazineServlet extends HttpServlet {
                     out.print(gson.toJson("Search type is required when search query is provided"));
                     return;
                 }
-                LoggingUtils.logInfo(logger, "Searching magazines by: " + searchType + " = " + searchQuery);
+                logger.info("Searching magazines by: {} = {}", searchType, searchQuery);
                 magazines = magazineService.search(searchType, searchQuery);
             } else if (pathInfo != null && !pathInfo.equals("/")) {
                 String issn = pathInfo.substring(1);
@@ -63,7 +61,7 @@ public class MagazineServlet extends HttpServlet {
 
             out.print(gson.toJson(magazines));
         } catch (Exception e) {
-            LoggingUtils.logError(logger, "Error in MagazineServlet.doGet", e);
+            logger.error("Error in MagazineServlet.doGet: {}", e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.toJson("Internal server error: " + e.getMessage()));
         }
@@ -91,10 +89,10 @@ public class MagazineServlet extends HttpServlet {
             }
 
             magazineService.create(magazine);
-            LoggingUtils.logInfo(logger, "New magazine added: " + magazine.getTitle());
+            logger.info("New magazine added: {}", magazine.getTitle());
             out.print(gson.toJson(magazine));
         } catch (Exception e) {
-            LoggingUtils.logError(logger, "Error in MagazineServlet.doPost", e);
+            logger.error("Error in MagazineServlet.doPost: {}", e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.toJson("Internal server error"));
         }
@@ -132,10 +130,10 @@ public class MagazineServlet extends HttpServlet {
             }
 
             magazineService.update(magazine);
-            LoggingUtils.logInfo(logger, "Magazine updated: " + magazine.getTitle());
+            logger.info("Magazine updated: {}", magazine.getTitle());
             out.print(gson.toJson(magazine));
         } catch (Exception e) {
-            LoggingUtils.logError(logger, "Error in MagazineServlet.doPut: " + e.getMessage(), e);
+            logger.error("Error in MagazineServlet.doPut: {}", e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.toJson("Internal server error: " + e.getMessage()));
         }
@@ -159,7 +157,7 @@ public class MagazineServlet extends HttpServlet {
             List<Magazine> magazines = magazineService.search("issn", issn);
             if (!magazines.isEmpty()) {
                 magazineService.delete(issn);
-                LoggingUtils.logInfo(logger, "Magazine deleted: " + issn);
+                logger.info("Magazine deleted: {}", issn);
                 response.setStatus(HttpServletResponse.SC_OK);
                 out.print(gson.toJson("Magazine deleted successfully"));
             } else {
@@ -167,7 +165,7 @@ public class MagazineServlet extends HttpServlet {
                 out.print(gson.toJson("Magazine not found"));
             }
         } catch (Exception e) {
-            LoggingUtils.logError(logger, "Error in MagazineServlet.doDelete: " + e.getMessage(), e);
+            logger.error("Error in MagazineServlet.doDelete: {}", e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             out.print(gson.toJson("Internal server error: " + e.getMessage()));
         }

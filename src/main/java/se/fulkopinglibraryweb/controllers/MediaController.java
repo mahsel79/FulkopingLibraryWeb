@@ -1,10 +1,11 @@
 package se.fulkopinglibraryweb.controllers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import se.fulkopinglibraryweb.exception.ControllerException;
 import se.fulkopinglibraryweb.model.Media;
 import se.fulkopinglibraryweb.service.interfaces.MediaService;
-import org.slf4j.Logger;
 import se.fulkopinglibraryweb.utils.FirestoreUtil;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
 
 import jakarta.inject.Inject;
 import jakarta.servlet.annotation.WebServlet;
@@ -16,7 +17,7 @@ import java.util.List;
 
 @WebServlet("/media")
 public class MediaController extends HttpServlet {
-    private static final Logger logger = LoggingUtils.getLogger(MediaController.class);
+    private static final Logger logger = LoggerFactory.getLogger(MediaController.class);
     private final MediaService mediaService;
 
     @Inject
@@ -27,9 +28,8 @@ public class MediaController extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        logger.info("Entering doGet - searchType: {}, searchQuery: {}", 
-            request.getParameter("searchType"), request.getParameter("searchQuery"));
         long startTime = System.currentTimeMillis();
+        logger.debug("GET request received for media endpoint");
         
         try {
             String searchType = request.getParameter("searchType");
@@ -37,23 +37,30 @@ public class MediaController extends HttpServlet {
 
             List<Media> mediaList;
             if (searchQuery != null && !searchQuery.trim().isEmpty()) {
-                logger.debug("Performing search - type: {}, query: {}", searchType, searchQuery);
+                logger.debug("Searching media with type: {} query: {}", searchType, searchQuery);
                 mediaList = mediaService.searchMedia(searchType, searchQuery);
-                logger.debug("Search completed - results: {}", mediaList.size());
+                logger.info("Found {} media items matching search (took {} ms)", 
+                    mediaList.size(), System.currentTimeMillis() - startTime);
             } else {
-                logger.debug("Fetching all media items");
                 mediaList = mediaService.getAllMedia();
-                logger.debug("Retrieved media items - count: {}", mediaList.size());
+                logger.info("Retrieved all {} media items (took {} ms)", 
+                    mediaList.size(), System.currentTimeMillis() - startTime);
             }
 
             request.setAttribute("mediaList", mediaList);
             request.getRequestDispatcher("/media.jsp").forward(request, response);
         } catch (Exception e) {
-            logger.error("Error processing media request", e);
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error retrieving media");
+            logger.error("Error retrieving media (took {} ms): {}", 
+                System.currentTimeMillis() - startTime, e.getMessage(), e);
+            throw new ControllerException(
+                HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                "MEDIA_RETRIEVAL_ERROR",
+                "Error retrieving media",
+                e.getMessage()
+            );
         } finally {
-            logger.info("Exiting doGet - execution time: {}ms", 
-                System.currentTimeMillis() - startTime);
+            long duration = System.currentTimeMillis() - startTime;
+            logger.debug("Media request processed in {} ms", duration);
         }
     }
 }

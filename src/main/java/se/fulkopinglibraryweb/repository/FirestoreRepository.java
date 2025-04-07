@@ -14,17 +14,11 @@ public interface FirestoreRepository<T, ID> extends GenericRepository<T, ID> {
     List<T> findAll();
     Boolean deleteById(ID id);
     List<T> findByField(String field, Object value);
-    List<T> findByFieldSync(String field, String value);
-    List<T> findByFieldSync(String field, int value);
-    Optional<T> findByIdSync(String id);
+    List<T> findByFieldSync(String field, Object value);
     T update(ID id, Map<String, Object> updates);
-    T convertToEntity(DocumentSnapshot document);
-    Map<String, Object> convertToMap(T entity);
     CollectionReference getCollection();
-    
-    // Search method returning list
     List<T> search(SearchCriteria criteria);
-    
-    List<String> getSearchableFields();
-    Optional<T> getById(ID id);
+    Long count();
+    Boolean deleteAll();
+    List<T> saveAll(List<T> entities);
 }

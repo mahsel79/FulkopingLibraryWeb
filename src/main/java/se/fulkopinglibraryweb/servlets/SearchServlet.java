@@ -1,20 +1,24 @@
 package se.fulkopinglibraryweb.servlets;
 
 import jakarta.inject.Inject;
+import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import se.fulkopinglibraryweb.service.interfaces.SearchService;
 import se.fulkopinglibraryweb.service.SearchServiceFactory;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.fulkopinglibraryweb.service.search.SearchCriteria;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+@WebServlet("/search")
 public class SearchServlet extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(SearchServlet.class);
     private final SearchServiceFactory searchServiceFactory;
 
     @Inject
@@ -54,13 +58,13 @@ public class SearchServlet extends HttpServlet {
             request.setAttribute("itemType", itemType);
             request.setAttribute("fuzzySearch", fuzzySearch);
 
-            request.getRequestDispatcher("search-results.jsp").forward(request, response);
+            request.getRequestDispatcher("/WEB-INF/views/search-results.jsp").forward(request, response);
         } catch (IllegalArgumentException e) {
-            LoggingUtils.logError(LoggingUtils.getLogger(this.getClass()), "Error in SearchServlet", e);
+            logger.error("Invalid search parameters in SearchServlet: {}", e.getMessage(), e);
             request.setAttribute("error", "Invalid search parameters: " + e.getMessage());
-            request.getRequestDispatcher("search-results.jsp").forward(request, response);
+            request.getRequestDispatcher("/WEB-INF/views/search-results.jsp").forward(request, response);
         } catch (Exception e) {
-            LoggingUtils.logError(LoggingUtils.getLogger(this.getClass()), "Error in SearchServlet", e);
+            logger.error("Unexpected error in SearchServlet: {}", e.getMessage(), e);
             request.setAttribute("error", "An error occurred during search");
             request.getRequestDispatcher("search-results.jsp").forward(request, response);
         }

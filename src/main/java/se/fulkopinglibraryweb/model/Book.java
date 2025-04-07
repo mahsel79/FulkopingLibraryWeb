@@ -83,21 +83,4 @@ public class Book extends LibraryItem {
         this.reserved = reserved;
     }
 
-    public void reserve() {
-        if (available && !reserved) {
-            reserved = true;
-            available = false;
-        }
-    }
-
-    public void cancelReservation() {
-        if (reserved) {
-            reserved = false;
-            available = true;
-        }
-    }
-
-    public Book save() {
-        return this;
-    }
 }

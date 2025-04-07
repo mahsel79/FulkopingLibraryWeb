@@ -6,25 +6,62 @@
     <title>Login - Fulkoping Library</title>
     <link rel="stylesheet" href="styles.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            .auth-form {
+                width: 100%;
+            }
+            .form-group {
+                width: 100%;
+                margin-bottom: 1rem;
+            }
+            .btn {
+                width: 100%;
+                padding: 0.75rem;
+            }
+            .form-links {
+                text-align: center;
+            }
+        }
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .auth-form {
+                width: 80%;
+                margin: 0 auto;
+            }
+        }
+        .btn .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .btn.loading .spinner {
+            display: inline-block;
+        }
+        .btn.loading .button-text {
+            display: none;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
+    <%@ include file="includes/header.jsp" %>
+    <%@ include file="includes/navigation.jsp" %>
+    <%@ include file="includes/error.jsp" %>
+
     <div class="container">
         <div class="auth-form">
             <h2>Login to Fulkoping Library</h2>
-            
-            <div id="loginErrorContainer" class="error-container" role="alert" aria-live="polite">
-                <c:if test="${param.error != null}">
-                    <div class="error-message">
-                        ${param.error}
-                    </div>
-                </c:if>
-                
-                <c:if test="${param.registered == 'true'}">
-                    <div class="alert alert-success">
-                        Registration successful! Please login.
-                    </div>
-                </c:if>
-            </div>
             
             <form action="login" method="POST" class="login-form" id="loginForm" novalidate>
                 <!-- CSRF Protection -->
@@ -49,8 +86,15 @@
                     <small class="form-text">Password must be at least 8 characters long</small>
                 </div>
                 
-                <div class="form-group">
-                    <button type="submit" class="btn btn-primary" data-original-text="Login">Login</button>
+                <div class="form-group" style="width: 100%;">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;" 
+                            data-original-text="Login"
+                            aria-live="polite"
+                            aria-busy="false"
+                            id="loginButton">
+                        <span class="button-text">Login</span>
+                        <span class="spinner" aria-hidden="true"></span>
+                    </button>
                 </div>
                 
                 <div class="form-links">
@@ -60,6 +104,8 @@
             </form>
         </div>
     </div>
+    
+    <%@ include file="includes/footer.jsp" %>
     
     <script src="js/form-validation.js"></script>
     <script>
@@ -90,8 +136,19 @@
             }
             
             if (isValid) {
-                FormValidator.showLoading(this);
-                this.submit();
+                const loginButton = document.getElementById('loginButton');
+                loginButton.classList.add('loading');
+                loginButton.setAttribute('aria-busy', 'true');
+                loginButton.disabled = true;
+                
+                try {
+                    this.submit();
+                } catch (error) {
+                    loginButton.classList.remove('loading');
+                    loginButton.setAttribute('aria-busy', 'false');
+                    loginButton.disabled = false;
+                    console.error('Form submission error:', error);
+                }
             }
         });
     </script>

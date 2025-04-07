@@ -3,8 +3,7 @@ package se.fulkopinglibraryweb.utils;
 import com.google.api.core.ApiFuture;
 import com.google.api.core.ApiFutures;
 import com.google.cloud.firestore.*;
-import org.slf4j.Logger;
-import static se.fulkopinglibraryweb.utils.LoggingUtils.*;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +17,6 @@ import java.util.Map;
  * Implements connection pooling to optimize resource usage and performance.
  */
 public class FirestoreUtil {
-    private static final Logger logger = getLogger(FirestoreUtil.class);
     private static final Map<String, String> roleCache = new ConcurrentHashMap<>();
     private static final int CACHE_SIZE = 1000;
 
@@ -64,14 +62,14 @@ public class FirestoreUtil {
         // Check cache first
         String cachedRole = roleCache.get(username);
         if (cachedRole != null) {
-            logger.debug("Cache hit for user role: {}", username);
+            LoggerUtil.logDebug("Cache hit for user role: {}", username);
             return cachedRole;
         }
 
         Firestore db = null;
         try {
             db = getFirestore();
-            logger.info("Fetching user roles in batch for username: {}", username);
+            LoggerUtil.logInfo("Fetching user roles in batch for username: {}", username);
 
             // Batch query to get all necessary data
             List<ApiFuture<QuerySnapshot>> futures = new ArrayList<>();
@@ -84,7 +82,7 @@ public class FirestoreUtil {
             List<QuerySnapshot> snapshots = ApiFutures.allAsList(futures).get();
 
             if (snapshots.get(0).isEmpty()) {
-                logger.warn("User '{}' not found in Firestore.", username);
+                LoggerUtil.logWarn("User '{}' not found in Firestore.", username);
                 return null;
             }
 
@@ -103,15 +101,15 @@ public class FirestoreUtil {
                 if (roleCache.size() < CACHE_SIZE) {
                     roleCache.put(username, roleName);
                 }
-                logger.info("User '{}' has role '{}'", username, roleName);
+                LoggerUtil.logInfo("User '{}' has role '{}'", username, roleName);
                 return roleName;
             } else {
-                logger.warn("No role found for user '{}'", username);
+                LoggerUtil.logWarn("No role found for user '{}'", username);
                 return null;
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            logger.error("Error fetching role for user '{}': {}", username, e.getMessage());
+            LoggerUtil.logError("Error fetching role for user '{}': {}", username, e.getMessage());
             return null;
         } finally {
             if (db != null) {

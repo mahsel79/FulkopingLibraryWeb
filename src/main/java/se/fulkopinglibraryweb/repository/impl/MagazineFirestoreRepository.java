@@ -1,8 +1,6 @@
 package se.fulkopinglibraryweb.repository.impl;
 
 import com.google.cloud.firestore.DocumentSnapshot;
-import com.google.cloud.firestore.QuerySnapshot;
-import com.google.cloud.firestore.AggregateQuerySnapshot;
 import org.springframework.stereotype.Repository;
 import se.fulkopinglibraryweb.model.Frequency;
 import se.fulkopinglibraryweb.model.ItemType;

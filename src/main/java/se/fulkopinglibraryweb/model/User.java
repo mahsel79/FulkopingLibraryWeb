@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.ArrayList;
 
 @Data
-@SuperBuilder
+@SuperBuilder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {

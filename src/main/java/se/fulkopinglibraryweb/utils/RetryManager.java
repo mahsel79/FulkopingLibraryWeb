@@ -1,10 +1,8 @@
 package se.fulkopinglibraryweb.utils;
 
 import java.util.concurrent.Callable;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
-
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 public class RetryManager {
-    private static final LoggingUtils LOGGER = new LoggingUtils(RetryManager.class);
     private static final int MAX_RETRIES = 3;
     private static final long INITIAL_WAIT_TIME = 1000; // 1 second
 
@@ -18,14 +16,15 @@ public class RetryManager {
             } catch (Exception e) {
                 attempts++;
                 if (attempts == MAX_RETRIES) {
-                    LOGGER.error("Operation failed after " + MAX_RETRIES + " attempts", e);
+                    LoggerUtil.logError(RetryManager.class.getName(), "Operation failed after {} attempts: {}", MAX_RETRIES, e.getMessage());
                     throw e;
                 }
 
-                LOGGER.error(String.format(
-                    "Operation failed (attempt %d/%d). Retrying in %d ms",
-                    attempts, MAX_RETRIES, waitTime
-                ), e);
+                LoggerUtil.logError(
+                    RetryManager.class.getName(),
+                    "Operation failed (attempt {}/{}). Retrying in {} ms: {}",
+                    attempts, MAX_RETRIES, waitTime, e.getMessage()
+                );
 
                 Thread.sleep(waitTime);
                 waitTime *= 2; // Exponential backoff

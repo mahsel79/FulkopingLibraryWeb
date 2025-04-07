@@ -1,5 +1,7 @@
 package se.fulkopinglibraryweb.service.impl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.google.cloud.firestore.CollectionReference;
 import com.google.cloud.firestore.Query;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
@@ -12,16 +14,20 @@ import java.util.Map;
 import se.fulkopinglibraryweb.service.search.SearchCriteria;
 
 public class FirestoreSearchService<T> implements SearchService<T> {
+    private static final Logger logger = LoggerFactory.getLogger(FirestoreSearchService.class);
+    
     private final CollectionReference collection;
     private final Class<T> typeParameterClass;
 
     public FirestoreSearchService(CollectionReference collection, Class<T> typeParameterClass) {
+        logger.debug("Initializing FirestoreSearchService for collection: {}", collection.getPath());
         this.collection = collection;
         this.typeParameterClass = typeParameterClass;
     }
 
     @Override
     public List<T> search(String query, String type, SearchCriteria criteria) throws Exception {
+        logger.debug("Searching with query: {}, type: {}, criteria: {}", query, type, criteria);
         QuerySnapshot querySnapshot = collection.get().get();
         if (criteria != null && criteria.getFilterField() != null && criteria.getFilterValue() != null) {
             querySnapshot = collection.whereEqualTo(criteria.getFilterField(), criteria.getFilterValue()).get().get();
@@ -35,6 +41,7 @@ public class FirestoreSearchService<T> implements SearchService<T> {
 
     @Override
     public List<T> fuzzySearch(String query, String type, double threshold) throws Exception {
+        logger.debug("Fuzzy searching with query: {}, type: {}, threshold: {}", query, type, threshold);
         List<T> results = new ArrayList<>();
         QuerySnapshot querySnapshot = collection.get().get();
         for (QueryDocumentSnapshot document : querySnapshot.getDocuments()) {
@@ -48,6 +55,7 @@ public class FirestoreSearchService<T> implements SearchService<T> {
 
     @Override
     public List<T> searchPaginated(String query, String type, int page, int size) throws Exception {
+        logger.debug("Paginated search with query: {}, type: {}, page: {}, size: {}", query, type, page, size);
         QuerySnapshot querySnapshot = collection
             .whereGreaterThanOrEqualTo(type, query)
             .whereLessThanOrEqualTo(type, query + "\uf8ff")
@@ -64,6 +72,8 @@ public class FirestoreSearchService<T> implements SearchService<T> {
 
     @Override
     public List<T> search(String query, String searchType, int page, int pageSize, String sortField, String sortOrder) {
+        logger.debug("Searching with query: {}, searchType: {}, page: {}, pageSize: {}, sortField: {}, sortOrder: {}", 
+            query, searchType, page, pageSize, sortField, sortOrder);
         try {
             Query baseQuery = collection
                 .whereGreaterThanOrEqualTo(searchType, query)
@@ -86,12 +96,14 @@ public class FirestoreSearchService<T> implements SearchService<T> {
             }
             return results;
         } catch (Exception e) {
+            logger.error("Error performing search with query: {}", query, e);
             throw new RuntimeException("Error performing search", e);
         }
     }
 
     @Override
     public List<T> fuzzySearch(String query, int maxDistance) {
+        logger.debug("Fuzzy searching with query: {}, maxDistance: {}", query, maxDistance);
         try {
             List<T> results = new ArrayList<>();
             QuerySnapshot querySnapshot = collection.get().get();
@@ -105,12 +117,14 @@ public class FirestoreSearchService<T> implements SearchService<T> {
             
             return results;
         } catch (Exception e) {
+            logger.error("Error performing fuzzy search with query: {}", query, e);
             throw new RuntimeException("Error performing fuzzy search", e);
         }
     }
 
     @Override
     public List<T> partialMatchSearch(String query) {
+        logger.debug("Partial match search with query: {}", query);
         try {
             QuerySnapshot querySnapshot = collection
                 .whereGreaterThanOrEqualTo("title", query)
@@ -124,6 +138,7 @@ public class FirestoreSearchService<T> implements SearchService<T> {
             }
             return results;
         } catch (Exception e) {
+            logger.error("Error performing partial match search with query: {}", query, e);
             throw new RuntimeException("Error performing partial match search", e);
         }
     }

@@ -1,6 +1,5 @@
 package se.fulkopinglibraryweb.retry;
 
-import org.slf4j.Logger;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
@@ -9,10 +8,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.function.Supplier;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 
 public class DatabaseRetryHandler {
-    private static final Logger LOGGER = LoggingUtils.getLogger(DatabaseRetryHandler.class);
     private final Retry retry;
 
     public DatabaseRetryHandler() {
@@ -27,15 +25,18 @@ public class DatabaseRetryHandler {
         retry = registry.retry("databaseRetry", retryConfig);
 
         retry.getEventPublisher()
-                .onRetry(event -> LoggingUtils.logWarn(LOGGER, String.format(
-                    "Retry attempt %d/%d after %s",
+                .onRetry(event -> LoggerUtil.logWarn(
+                    "DatabaseRetryHandler",
                     event.getNumberOfRetryAttempts(),
+                    "Retry attempt %d/%d after %s",
                     retryConfig.getMaxAttempts(),
                     event.getLastThrowable().getMessage()
-                )))
-                .onError(event -> LoggingUtils.logError(LOGGER, 
-                    String.format("Retry exhausted after %d attempts", event.getNumberOfRetryAttempts()),
-                    event.getLastThrowable()
+                ))
+                .onError(event -> LoggerUtil.logError(
+                    "DatabaseRetryHandler",
+                    "Retry exhausted after %d attempts: %s",
+                    event.getNumberOfRetryAttempts(),
+                    event.getLastThrowable().getMessage()
                 ));
     }
 

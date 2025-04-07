@@ -9,10 +9,12 @@ import se.fulkopinglibraryweb.repository.BookRepository;
 import se.fulkopinglibraryweb.repository.MagazineRepository;
 import se.fulkopinglibraryweb.repository.MediaRepository;
 import se.fulkopinglibraryweb.service.AsyncBookServiceImpl;
+import se.fulkopinglibraryweb.mappers.BookMapper;
 import se.fulkopinglibraryweb.service.impl.LoanServiceImpl;
 import se.fulkopinglibraryweb.repository.UserRepository;
 import se.fulkopinglibraryweb.utils.PasswordUtils;
 import se.fulkopinglibraryweb.service.interfaces.BookService;
+import se.fulkopinglibraryweb.service.interfaces.AsyncBookService;
 import se.fulkopinglibraryweb.service.interfaces.UserService;
 import se.fulkopinglibraryweb.service.interfaces.LibraryService;
 import se.fulkopinglibraryweb.service.impl.LibraryServiceImpl;
@@ -28,6 +30,12 @@ import se.fulkopinglibraryweb.model.Magazine;
 import se.fulkopinglibraryweb.model.Media;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Configuration
 @ComponentScan(basePackages = "se.fulkopinglibraryweb")
@@ -35,6 +43,37 @@ import java.util.concurrent.ExecutionException;
 @Profile({"dev", "prod", "test"})
 @PropertySource("classpath:application-${spring.profiles.active}.properties")
 public class UnifiedAppConfig {
+
+    // Thread pool configuration
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService asyncTaskExecutor() {
+        int corePoolSize = Runtime.getRuntime().availableProcessors();
+        int maxPoolSize = corePoolSize * 2;
+        return new ThreadPoolExecutor(
+            corePoolSize,
+            maxPoolSize,
+            60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(1000),
+            new NamedThreadFactory("async-task-"),
+            new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+    }
+
+    private static class NamedThreadFactory implements ThreadFactory {
+        private final AtomicInteger threadNumber = new AtomicInteger(1);
+        private final String namePrefix;
+
+        NamedThreadFactory(String namePrefix) {
+            this.namePrefix = namePrefix;
+        }
+
+        public Thread newThread(Runnable r) {
+            Thread t = new Thread(r, namePrefix + threadNumber.getAndIncrement());
+            t.setDaemon(false);
+            t.setPriority(Thread.NORM_PRIORITY);
+            return t;
+        }
+    }
 
     // Validation beans
     @Bean
@@ -44,10 +83,6 @@ public class UnifiedAppConfig {
         return validatorFactory;
     }
 
-    @Bean
-    public ValidationUtils validationUtils() {
-        return new ValidationUtils();
-    }
 
     // Firestore collection references
     @Bean
@@ -72,8 +107,8 @@ public class UnifiedAppConfig {
 
     // Service layer beans
     @Bean
-    public BookService bookService(BookRepository bookRepository) {
-        return new AsyncBookServiceImpl(bookRepository);
+    public AsyncBookService bookService(BookRepository bookRepository, BookMapper bookMapper, ExecutorService asyncTaskExecutor) {
+        return new AsyncBookServiceImpl(bookRepository, bookMapper, asyncTaskExecutor);
     }
 
     @Bean 

@@ -6,7 +6,7 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 import se.fulkopinglibraryweb.model.Loan;
 import se.fulkopinglibraryweb.model.LibraryItem;
 import se.fulkopinglibraryweb.service.interfaces.LoanService;
@@ -51,11 +51,11 @@ public abstract class AbstractLibraryService<T extends LibraryItem, ID> {
             var documentSnapshot = collection.document(id.toString()).get().get();
             return Optional.ofNullable(documentSnapshot.exists() ? documentSnapshot.toObject(entityClass) : null);
         } catch (InterruptedException e) {
-            LoggingUtils.logError(logger, String.format("Thread interrupted while fetching %s: %s", entityName, id), e);
+            LoggerUtil.logError(this.getClass(), String.format("Thread interrupted while fetching %s: %s", entityName, id), e);
             Thread.currentThread().interrupt();
             throw e;
         } catch (ExecutionException e) {
-            LoggingUtils.logError(logger, String.format("Error executing %s fetch: %s", entityName, id), e);
+            LoggerUtil.logError(this.getClass(), String.format("Error executing %s fetch: %s", entityName, id), e);
             throw e;
         }
     }
@@ -71,11 +71,11 @@ public abstract class AbstractLibraryService<T extends LibraryItem, ID> {
         try {
             return collection.get().get().toObjects(entityClass);
         } catch (InterruptedException e) {
-            LoggingUtils.logError(logger, String.format("Thread interrupted while fetching %s collection", entityName), e);
+            LoggerUtil.logError(this.getClass(), String.format("Thread interrupted while fetching %s collection", entityName), e);
             Thread.currentThread().interrupt();
             throw e;
         } catch (ExecutionException e) {
-            LoggingUtils.logError(logger, String.format("Error executing %s collection fetch", entityName), e);
+            LoggerUtil.logError(this.getClass(), String.format("Error executing %s collection fetch", entityName), e);
             throw e;
         }
     }
@@ -95,14 +95,14 @@ public abstract class AbstractLibraryService<T extends LibraryItem, ID> {
             }
             DocumentReference docRef = collection.document();
             docRef.set(item).get();
-            LoggingUtils.logInfo(logger, String.format("%s created successfully", entityName));
+            LoggerUtil.logInfo(this.getClass(), String.format("%s created successfully", entityName));
             return item;
         } catch (InterruptedException e) {
-            LoggingUtils.logError(logger, String.format("Thread interrupted while creating %s", entityName), e);
+            LoggerUtil.logError(this.getClass(), String.format("Thread interrupted while creating %s", entityName), e);
             Thread.currentThread().interrupt();
             throw e;
         } catch (ExecutionException e) {
-            LoggingUtils.logError(logger, String.format("Error executing %s creation", entityName), e);
+            LoggerUtil.logError(this.getClass(), String.format("Error executing %s creation", entityName), e);
             throw e;
         }
     }
@@ -124,12 +124,12 @@ public abstract class AbstractLibraryService<T extends LibraryItem, ID> {
             if (item != null) {
                 docRef.update("available", false).get();
                 loanService.borrowItem(userId, id.toString());
-                LoggingUtils.logInfo(logger, String.format("%s borrowed successfully: %s", entityName, id));
+                LoggerUtil.logInfo(this.getClass(), String.format("%s borrowed successfully: %s", entityName, id));
                 return true;
             }
             return false;
         } catch (Exception e) {
-            LoggingUtils.logError(logger, String.format("Error borrowing %s: %s", entityName, id), e);
+            LoggerUtil.logError(this.getClass(), String.format("Error borrowing %s: %s", entityName, id), e);
             return false;
         }
     }
@@ -154,14 +154,14 @@ public abstract class AbstractLibraryService<T extends LibraryItem, ID> {
                 for (Loan loan : borrowedItems) {
                     if (loan.getItemId().equals(id.toString())) {
                         loanService.returnItem(userId, id.toString());
-                        LoggingUtils.logInfo(logger, String.format("%s returned successfully: %s", entityName, id));
+                        LoggerUtil.logInfo(this.getClass(), String.format("%s returned successfully: %s", entityName, id));
                         return true;
                     }
                 }
             }
             return false;
         } catch (Exception e) {
-            LoggingUtils.logError(logger, String.format("Error returning %s: %s", entityName, id), e);
+            LoggerUtil.logError(this.getClass(), String.format("Error returning %s: %s", entityName, id), e);
             return false;
         }
     }

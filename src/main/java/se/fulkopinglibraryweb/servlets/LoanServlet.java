@@ -6,21 +6,18 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import se.fulkopinglibraryweb.model.Loan;
 import se.fulkopinglibraryweb.model.User;
 import se.fulkopinglibraryweb.service.interfaces.BookService;
 import se.fulkopinglibraryweb.service.interfaces.LoanService;
 import se.fulkopinglibraryweb.service.interfaces.MagazineService;
 import se.fulkopinglibraryweb.service.interfaces.MediaService;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 
 import java.io.IOException;
 
 @WebServlet("/loan")
 public class LoanServlet extends HttpServlet {
-    private static final Logger logger = LoggerFactory.getLogger(LoanServlet.class);
 
     private LoanService loanService;
 
@@ -61,16 +58,16 @@ public class LoanServlet extends HttpServlet {
             }
 
             if (success) {
-                LoggingUtils.logInfo(logger, String.format("%s %s %s %s successfully", user.getUsername(), action, itemType, itemId));
+                LoggerUtil.logInfo(LoanServlet.class, "User %s %s %s %s successfully", new Object[]{user.getUsername(), action, itemType, itemId});
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().write("Success");
             } else {
-                LoggingUtils.logWarn(logger, String.format("Failed to %s %s %s for user %s", action, itemType, itemId, user.getUsername()));
+                LoggerUtil.logWarn("LoanServlet", "User %s failed to %s %s %s", new Object[]{user.getUsername(), action, itemType, itemId});
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.getWriter().write("Failed to process request");
             }
         } catch (Exception e) {
-            LoggingUtils.logError(logger, String.format("Error processing %s request for %s", action, itemType), e);
+            LoggerUtil.logError(LoanServlet.class, e, "Error processing %s request for %s", action, itemType);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             response.getWriter().write("An error occurred");
         }

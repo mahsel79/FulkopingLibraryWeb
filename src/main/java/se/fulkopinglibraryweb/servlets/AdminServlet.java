@@ -13,7 +13,8 @@ import se.fulkopinglibraryweb.service.interfaces.UserService;
 import se.fulkopinglibraryweb.service.interfaces.LoanService;
 import se.fulkopinglibraryweb.service.interfaces.BookService;
 import se.fulkopinglibraryweb.service.interfaces.MediaService;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,13 +23,14 @@ import se.fulkopinglibraryweb.model.Media;
 
 @WebServlet("/admin/*")
 public class AdminServlet extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(AdminServlet.class);
     private final UserService userService;
     private final LoanService loanService;
     private final BookService bookService;
     private final MediaService mediaService;
 
-    public AdminServlet(UserService userService, LoanService loanService, 
-                       BookService bookService, MediaService mediaService) {
+    public AdminServlet(UserService userService, LoanService loanService,
+                        BookService bookService, MediaService mediaService) {
         this.userService = userService;
         this.loanService = loanService;
         this.bookService = bookService;
@@ -45,21 +47,14 @@ public class AdminServlet extends HttpServlet {
         }
 
         try {
-            // Get users synchronously
             List<User> users = userService.findAll();
-            
-            // Get media synchronously
             List<Media> media = mediaService.getAllMedia();
-            
-            // Get loans and books synchronously
             List<Loan> overdueLoans = loanService.getLoansByStatus(LoanStatus.OVERDUE);
-            List<Book> books = bookService.getAll();
+            List<Book> books = bookService.findAll();
 
-            // Set request attributes
             request.setAttribute("users", users);
             request.setAttribute("overdueLoans", overdueLoans);
 
-            // Calculate statistics
             int totalUsers = users.size();
             int activeLoans = 0;
             int overdueItems = overdueLoans.size();
@@ -70,9 +65,9 @@ public class AdminServlet extends HttpServlet {
             request.setAttribute("overdueItems", overdueItems);
             request.setAttribute("totalItems", totalItems);
 
-            request.getRequestDispatcher("/admin.jsp").forward(request, response);
+            request.getRequestDispatcher("/WEB-INF/views/admin.jsp").forward(request, response);
         } catch (Exception e) {
-            LoggingUtils.logError(LoggingUtils.getLogger(AdminServlet.class), "AdminServlet: Error in doGet", e);
+            logger.error("Error in AdminServlet.doGet: {}", e.getMessage(), e);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error loading admin dashboard");
         }
     }
@@ -101,7 +96,7 @@ public class AdminServlet extends HttpServlet {
                 response.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
         } catch (Exception e) {
-            LoggingUtils.logError(LoggingUtils.getLogger(AdminServlet.class), "AdminServlet: Error in doPost", e);
+            logger.error("Error in AdminServlet.doPost: {}", e.getMessage(), e);
             response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error processing request");
         }
     }
@@ -126,10 +121,8 @@ public class AdminServlet extends HttpServlet {
                 success = true;
             }
         } catch (Exception e) {
-            LoggingUtils.logError(LoggingUtils.getLogger(AdminServlet.class), 
-                "Error updating user status", e);
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, 
-                "Error updating user status");
+            logger.error("Error updating user status: {}", e.getMessage(), e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error updating user status");
             return;
         }
 

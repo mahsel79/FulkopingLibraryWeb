@@ -55,7 +55,6 @@ public class ConnectionHealthCheck {
                     "ALERT: Database connection has failed %d consecutive times!",
                     consecutiveFailures
                 ));
-                // TODO: Add actual alerting (email, SMS, etc) here
             }
         }
     }

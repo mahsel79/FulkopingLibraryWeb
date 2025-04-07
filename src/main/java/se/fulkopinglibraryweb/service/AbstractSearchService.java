@@ -2,7 +2,7 @@ package se.fulkopinglibraryweb.service;
 
 import se.fulkopinglibraryweb.service.interfaces.SearchService;
 import se.fulkopinglibraryweb.service.search.SearchCriteria;
-import se.fulkopinglibraryweb.utils.LoggingUtils;
+import se.fulkopinglibraryweb.utils.LoggerUtil;
 import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +33,7 @@ public abstract class AbstractSearchService<T> implements SearchService<T> {
             List<T> filteredByType = filterItemsByType(allItems, query.toLowerCase(), type);
             return applyFilters(filteredByType, filters);
         } catch (Exception e) {
-            LoggingUtils.logError(logger, "Error performing " + serviceName + " search", e);
+            LoggerUtil.logError("Error performing " + serviceName + " search", e);
             throw new Exception("Error performing " + serviceName + " search", e);
         }
     }
@@ -50,7 +50,7 @@ public abstract class AbstractSearchService<T> implements SearchService<T> {
                     .filter(item -> isFuzzyMatch(item, query.toLowerCase(), type, threshold))
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            LoggingUtils.logError(logger, "Error performing fuzzy " + serviceName + " search", e);
+            LoggerUtil.logError("Error performing fuzzy " + serviceName + " search", e);
             throw new Exception("Error performing fuzzy " + serviceName + " search", e);
         }
     }
@@ -73,7 +73,7 @@ public abstract class AbstractSearchService<T> implements SearchService<T> {
             
             return applyFilters(filteredByType, filters);
         } catch (Exception e) {
-            LoggingUtils.logError(logger, "Error performing advanced " + serviceName + " search", e);
+            LoggerUtil.logError("Error performing advanced " + serviceName + " search", e);
             throw new Exception("Error performing advanced " + serviceName + " search", e);
         }
     }
